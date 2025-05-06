@@ -3,11 +3,30 @@ import { useEffect, useState } from "react";
 const key = import.meta.env.VITE_GITHUB_COMMIT_TOKEN;
 
 function App() {
+  const [searchResult, setSearchResult] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   return (
     <div>
-      <NavBar />
-      <HomePage />
-      {/* <ViewPage /> */}
+      {searchResult.length === 0 && (
+        <>
+          <NavBar />
+          <HomePage
+            searchResult={searchResult}
+            onSetResult={setSearchResult}
+            loading={isLoading}
+            setIsLoading={setIsLoading}
+          />
+        </>
+      )}
+      {searchResult.length !== 0 && (
+        <ViewPage
+          searchResult={searchResult}
+          onSetResult={setSearchResult}
+          loading={isLoading}
+          isLoading={setIsLoading}
+        />
+      )}
     </div>
   );
 }
@@ -39,29 +58,28 @@ function NavBar() {
   );
 }
 
-function HomePage() {
+function HomePage({ searchResult, onSetResult, loading, setIsLoading }) {
   const [repoButton, setRepoButton] = useState();
 
-  useEffect(
-    function () {
-      async function fetchRepo() {
-        const res = await fetch(
-          `https://api.github.com/search/repositories?q=stars:>1000&sort=stars&order=desc&page=20&per_page=15
+  useEffect(function () {
+    async function fetchRepo() {
+      setIsLoading(true);
+      const res = await fetch(
+        `https://api.github.com/search/repositories?q=stars:>1000&sort=stars&order=desc&page=20&per_page=15
 `,
-          {
-            header: { Authorization: `Bearer ${key}` },
-          }
-        );
-        if (!res.ok) throw new Error("Something went wrong");
-        const data = await res.json();
-        console.log(data.items);
-        const items = data.items.map((item) => item.full_name);
-        setRepoButton(items.slice(0, 5));
-      }
-      fetchRepo();
-    },
-    [repoButton]
-  );
+        {
+          header: { Authorization: `Bearer ${key}` },
+        }
+      );
+      if (!res.ok) throw new Error("Something went wrong");
+      const data = await res.json();
+      console.log(data.items);
+      const items = data.items.map((item) => item.full_name);
+      setIsLoading(false);
+      setRepoButton(items.slice(1, 5));
+    }
+    fetchRepo();
+  }, []);
   return (
     <div className="max-w-width-styling w-[90%] mx-auto text-center pt-8">
       <header className=" text-dark-blue text-[3.5rem] font-[600] tracking-[-0.15rem] leading-[3.875rem] pb-6">
@@ -76,7 +94,13 @@ function HomePage() {
       <SearchBar />
       <ShowCommitButton />
       <OptionText />
-      <CommitSuggestionButton repoButton={repoButton} />
+      {loading && <Loader />}
+      <CommitSuggestionButton
+        repoButton={repoButton}
+        searchResult={searchResult}
+        onSetResult={onSetResult}
+        setIsLoading={setIsLoading}
+      />
     </div>
   );
 }
@@ -111,8 +135,45 @@ function ShowCommitButton({ className = "" }) {
   );
 }
 
-function CommitSuggestionButton({ repoButton }) {
-  const [query, setQuery] = useState("");
+// function CommitSuggestionButton({ setIsLoading, repoButton, onSetResult }) {
+//   const fetchCommit = async (fullName) => {
+//     setIsLoading(true);
+//     const res = await fetch(`https://api.github.com/repos/${fullName}/commits`);
+//     if (!res.ok) throw new Error("Something went wrong");
+//     const data = await res.json();
+//     onSetResult(data);
+//     setIsLoading(false);
+//     console.log(data);
+//   };
+
+//   // const [query, setQuery] = useState("");
+
+//   return (
+//     <div className="flex flex-col gap-2">
+//       {repoButton?.length > 0 &&
+//         repoButton.map((btn, index) => (
+//           <button
+//             key={index}
+//             className="mb-2 py-2 px-4 bg-dark-blue text-white font-[600] rounded-lg"
+//             onClick={() => fetchCommit(btn)}
+//           >
+//             {btn}
+//           </button>
+//         ))}
+//     </div>
+//   );
+// }
+
+function CommitSuggestionButton({ setIsLoading, repoButton, onSetResult }) {
+  const fetchCommit = async (fullName) => {
+    setIsLoading(true);
+    const res = await fetch(`https://api.github.com/repos/${fullName}/commits`);
+    if (!res.ok) throw new Error("Something went wrong");
+    const data = await res.json();
+    onSetResult(data);
+    setIsLoading(false);
+    console.log(data);
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -121,6 +182,7 @@ function CommitSuggestionButton({ repoButton }) {
           <button
             key={index}
             className="mb-2 py-2 px-4 bg-dark-blue text-white font-[600] rounded-lg"
+            onClick={() => fetchCommit(btn)}
           >
             {btn}
           </button>
@@ -141,40 +203,59 @@ function ViewPageNav() {
   );
 }
 
-function ViewPage() {
+function ViewPage({ searchResult }) {
+  const [result, setResult] = useState();
+
+  useEffect(() => {
+    if (searchResult && searchResult.length > 0) {
+      const authorLogin = searchResult[0].author.login;
+      // Get the login of the first result
+      setResult(authorLogin); // Update the result state
+    }
+  }, [searchResult]);
+
   return (
     <div>
       <div>
         <ViewPageNav />
       </div>
 
-      <h3 className="text-dark-blue text-4xl text-center">microsoft/vscode</h3>
-      <SearchResult />
+      <h3 className="text-dark-blue text-4xl text-center mb-5">{result}</h3>
+      <SearchResult searchResult={searchResult} />
     </div>
   );
 }
 
-function SearchResult() {
+function SearchResult({ searchResult, loading }) {
   return (
     <div className="px-2 pb-3">
-      <div className="flex ">
-        <img
-          src="images/git-commit-view-img.png"
-          alt="user avatar"
-          className="w-7 h-7"
-        />
-        <h3>Gaearon</h3>
-        <p className="ml-auto">23:30 28/04/2021</p>
-      </div>
-      <p className="pb-2">
-        Log all errors to console.error by default (#21130)
-      </p>
+      {searchResult.map((result) => {
+        return (
+          <div>
+            {loading && <Loader />}
+            <div key={result.sha} className="flex pb-0 h-auto">
+              <img
+                src={result.author.avatar_url}
+                alt="user avatar"
+                className="w-7 h-7 rounded-xl"
+              />
+              <h3 className="mb-8">{result.committer.login}</h3>
+              <p className="ml-auto">
+                {new Date(result.commit.author.date).toLocaleTimeString()}{" "}
+                {new Date(result.commit.author.date).toLocaleDateString()}
+              </p>
+            </div>
+            <p className="mb-2 mt-[-1rem] pb-10 w-[200px] text-sm">
+              {result.commit.message}
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function Loader() {
-  return <div>Loading...</div>;
+  return <div className="loader"></div>;
 }
-
 export default App;
