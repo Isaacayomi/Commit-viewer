@@ -9,38 +9,6 @@ function App() {
   const [showViewPage, setShowViewPage] = useState(false);
   const [commitData, setCommitData] = useState([]);
 
-  // return (
-  //   <div>
-  //     {searchResult.length === 0 && (
-  //       <>
-  //         <NavBar />
-  //         <HomePage
-  //           searchResult={searchResult}
-  //           onSetResult={setSearchResult}
-  //           loading={isLoading}
-  //           setIsLoading={setIsLoading}
-  //           query={query}
-  //           setQuery={setQuery}
-  //           showViewPage={showViewPage}
-  //           setShowView={setShowViewPage}
-  //         />
-  //       </>
-  //     )}
-  //     {searchResult.length !== 0 && (
-  //       <ViewPage
-  //         searchResult={searchResult}
-  //         onSetResult={setSearchResult}
-  //         loading={isLoading}
-  //         isLoading={setIsLoading}
-  //         query={query}
-  //         setQuery={setQuery}
-  //         showViewPage={showViewPage}
-  //         setShowView={setShowViewPage}
-  //       />
-  //     )}
-  //   </div>
-  // );
-
   return (
     <div>
       {!showViewPage && searchResult.length === 0 ? (
@@ -66,6 +34,7 @@ function App() {
             setIsLoading={setIsLoading}
             query={query}
             setQuery={setQuery}
+            showViewPage={showViewPage}
             setShowViewPage={setShowViewPage}
             commitData={commitData}
           />
@@ -208,7 +177,7 @@ function SearchBar({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="E.g. facebook/react"
-        className={`max-w-width-styling w-[90%] mx-auto pt-[0.9375rem] pb-[0.9375rem] px-4 outline-none bg-[#DFE4EA] rounded-lg mb-6 ${className}`}
+        className={` max-w-width-styling w-[90%] mx-auto pt-[0.9375rem] pb-[0.9375rem] px-4 outline-none bg-[#DFE4EA] rounded-lg mb-6 ${className}`}
       />
     </form>
   );
@@ -286,19 +255,34 @@ function CommitSuggestionButton({ setIsLoading, repoButton, onSetResult }) {
   );
 }
 
-function ViewPageNav() {
+function ViewPageNav({ setShowViewPage, setQuery, onSetResult }) {
   return (
     <>
       <NavLogo />
-      <div className="flex justify-between items-center flex-row pt-1 ">
-        <SearchBar className="text-[0.9rem] pb-[0.8rem] pt-[0.8rem]" />
-        <ShowCommitButton className="py-[0.5rem] text-[0.9rem]" />
-      </div>
+      <button
+        onClick={() => {
+          setShowViewPage(false);
+          setQuery("");
+          onSetResult([]);
+          console.log("working");
+        }}
+        className="border text-dark-blue m-4 w-20"
+      >
+        BACK
+      </button>
     </>
   );
 }
 
-function ViewPage({ searchResult, commitData }) {
+function ViewPage({
+  searchResult,
+  commitData,
+  setQuery,
+  setIsLoading,
+  setCommitData,
+  setShowViewPage,
+  onSetResult,
+}) {
   const [result, setResult] = useState();
   const [loading, setLoading] = useState(false);
 
@@ -318,12 +302,18 @@ function ViewPage({ searchResult, commitData }) {
   return (
     <div>
       <div>
-        <ViewPageNav />
+        <ViewPageNav
+          setQuery={setQuery}
+          setIsLoading={setIsLoading}
+          setCommitData={setCommitData}
+          setShowViewPage={setShowViewPage}
+          onSetResult={onSetResult}
+        />
       </div>
-
-      <h3 className="text-dark-blue text-4xl text-center mb-5">{result}</h3>
-      {loading && <Loader />}
-      <SearchResult searchResult={searchResult} />
+      <>
+        <h3 className="text-dark-blue text-4xl text-center mb-5">{result}</h3>
+        <SearchResult searchResult={searchResult} />
+      </>
     </div>
   );
 }
