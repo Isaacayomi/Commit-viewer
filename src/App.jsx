@@ -58,16 +58,18 @@ function App() {
           />
         </>
       ) : (
-        <ViewPage
-          searchResult={searchResult}
-          onSetResult={setSearchResult}
-          loading={isLoading}
-          setIsLoading={setIsLoading}
-          query={query}
-          setQuery={setQuery}
-          setShowViewPage={setShowViewPage}
-          commitData={commitData}
-        />
+        <>
+          <ViewPage
+            searchResult={searchResult}
+            onSetResult={setSearchResult}
+            loading={isLoading}
+            setIsLoading={setIsLoading}
+            query={query}
+            setQuery={setQuery}
+            setShowViewPage={setShowViewPage}
+            commitData={commitData}
+          />
+        </>
       )}
     </div>
   );
@@ -142,12 +144,23 @@ function HomePage({
         to see the story of how they were built.
       </p>
 
-      <SearchBar query={query} setQuery={setQuery} />
+      <SearchBar
+        query={query}
+        setQuery={setQuery}
+        setIsLoading={setIsLoading}
+        setCommitData={setCommitData}
+        setShowViewPage={setShowViewPage}
+        onSetResult={onSetResult}
+      />
       <ShowCommitButton
         query={query}
         setShowViewPage={setShowViewPage}
         setCommitData={setCommitData}
+        onSetResult={onSetResult}
+        setIsLoading={setIsLoading}
+        loading={loading}
       />
+
       <OptionText />
       {loading && <Loader />}
       <CommitSuggestionButton
@@ -160,18 +173,36 @@ function HomePage({
   );
 }
 
-function SearchBar({ className = " ", query, setQuery }) {
-  async function fetchRepo(e) {
-    e.preventDefault();
+function SearchBar({
+  className = " ",
+  query,
+  setQuery,
+  setShowViewPage,
+  setCommitData,
+  onSetResult,
+  setIsLoading,
+}) {
+  async function fetchRepo(query) {
+    setIsLoading(true);
     const res = await fetch(`https://api.github.com/repos/${query}/commits`, {
       header: { Authorization: `Bearer ${key}` },
     });
+    if (!res.ok) return;
     const data = await res.json();
+    setCommitData(data);
+    onSetResult(data);
     console.log(`This is data`, data);
+    setIsLoading(false);
+    query.length === 0 ? setShowViewPage(false) : setShowViewPage(true);
   }
 
   return (
-    <form onSubmit={fetchRepo}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        fetchRepo(query);
+      }}
+    >
       <input
         type="text"
         value={query}
@@ -196,21 +227,26 @@ function ShowCommitButton({
   query,
   setShowViewPage,
   setCommitData,
+  onSetResult,
+  setIsLoading,
 }) {
-  async function fetchRepo() {
+  async function fetchRepo(query) {
+    setIsLoading(true);
     const res = await fetch(`https://api.github.com/repos/${query}/commits`, {
       header: { Authorization: `Bearer ${key}` },
     });
     if (!res.ok) return;
     const data = await res.json();
     setCommitData(data);
+    onSetResult(data);
     console.log(`This is data`, data);
+    setIsLoading(false);
     query.length === 0 ? setShowViewPage(false) : setShowViewPage(true);
   }
 
   return (
     <button
-      onClick={fetchRepo}
+      onClick={() => fetchRepo(query)}
       className={`max-w-width-styling w-[90%] text-center rounded-lg bg-[#F3663F] py-4 mb-8 text-white text-xl font-[600]  leading-[1.75rem] ${className}`}
     >
       See commits 🚀
@@ -264,8 +300,10 @@ function ViewPageNav() {
 
 function ViewPage({ searchResult, commitData }) {
   const [result, setResult] = useState();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     if (searchResult && searchResult.length > 0) {
       const authorLogin = searchResult[0].author.login;
       console.log(authorLogin);
@@ -274,6 +312,7 @@ function ViewPage({ searchResult, commitData }) {
       const authorLogin = commitData[0].author.login;
       setResult(authorLogin);
     }
+    setLoading(false);
   }, [searchResult, commitData]);
 
   return (
@@ -283,18 +322,18 @@ function ViewPage({ searchResult, commitData }) {
       </div>
 
       <h3 className="text-dark-blue text-4xl text-center mb-5">{result}</h3>
+      {loading && <Loader />}
       <SearchResult searchResult={searchResult} />
     </div>
   );
 }
 
-function SearchResult({ searchResult, loading }) {
+function SearchResult({ searchResult }) {
   return (
     <div className="px-2 pb-3">
       {searchResult.map((result) => {
         return (
           <div>
-            {loading && <Loader />}
             <div key={result.sha} className="flex pb-0 h-auto">
               <img
                 src={result.author.avatar_url}
