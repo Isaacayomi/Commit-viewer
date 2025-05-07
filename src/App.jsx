@@ -5,10 +5,45 @@ const key = import.meta.env.VITE_GITHUB_COMMIT_TOKEN;
 function App() {
   const [searchResult, setSearchResult] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [query, setQuery] = useState("");
+  const [showViewPage, setShowViewPage] = useState(false);
+  const [commitData, setCommitData] = useState([]);
+
+  // return (
+  //   <div>
+  //     {searchResult.length === 0 && (
+  //       <>
+  //         <NavBar />
+  //         <HomePage
+  //           searchResult={searchResult}
+  //           onSetResult={setSearchResult}
+  //           loading={isLoading}
+  //           setIsLoading={setIsLoading}
+  //           query={query}
+  //           setQuery={setQuery}
+  //           showViewPage={showViewPage}
+  //           setShowView={setShowViewPage}
+  //         />
+  //       </>
+  //     )}
+  //     {searchResult.length !== 0 && (
+  //       <ViewPage
+  //         searchResult={searchResult}
+  //         onSetResult={setSearchResult}
+  //         loading={isLoading}
+  //         isLoading={setIsLoading}
+  //         query={query}
+  //         setQuery={setQuery}
+  //         showViewPage={showViewPage}
+  //         setShowView={setShowViewPage}
+  //       />
+  //     )}
+  //   </div>
+  // );
 
   return (
     <div>
-      {searchResult.length === 0 && (
+      {!showViewPage && searchResult.length === 0 ? (
         <>
           <NavBar />
           <HomePage
@@ -16,15 +51,22 @@ function App() {
             onSetResult={setSearchResult}
             loading={isLoading}
             setIsLoading={setIsLoading}
+            query={query}
+            setQuery={setQuery}
+            setShowViewPage={setShowViewPage}
+            setCommitData={setCommitData}
           />
         </>
-      )}
-      {searchResult.length !== 0 && (
+      ) : (
         <ViewPage
           searchResult={searchResult}
           onSetResult={setSearchResult}
           loading={isLoading}
-          isLoading={setIsLoading}
+          setIsLoading={setIsLoading}
+          query={query}
+          setQuery={setQuery}
+          setShowViewPage={setShowViewPage}
+          commitData={commitData}
         />
       )}
     </div>
@@ -58,7 +100,16 @@ function NavBar() {
   );
 }
 
-function HomePage({ searchResult, onSetResult, loading, setIsLoading }) {
+function HomePage({
+  searchResult,
+  onSetResult,
+  loading,
+  setIsLoading,
+  query,
+  setQuery,
+  setShowViewPage,
+  setCommitData,
+}) {
   const [repoButton, setRepoButton] = useState();
 
   useEffect(function () {
@@ -91,8 +142,12 @@ function HomePage({ searchResult, onSetResult, loading, setIsLoading }) {
         to see the story of how they were built.
       </p>
 
-      <SearchBar />
-      <ShowCommitButton />
+      <SearchBar query={query} setQuery={setQuery} />
+      <ShowCommitButton
+        query={query}
+        setShowViewPage={setShowViewPage}
+        setCommitData={setCommitData}
+      />
       <OptionText />
       {loading && <Loader />}
       <CommitSuggestionButton
@@ -105,15 +160,26 @@ function HomePage({ searchResult, onSetResult, loading, setIsLoading }) {
   );
 }
 
-function SearchBar({ className = " " }) {
+function SearchBar({ className = " ", query, setQuery }) {
+  async function fetchRepo(e) {
+    e.preventDefault();
+    const res = await fetch(`https://api.github.com/repos/${query}/commits`, {
+      header: { Authorization: `Bearer ${key}` },
+    });
+    const data = await res.json();
+    console.log(`This is data`, data);
+  }
+
   return (
-    <div>
+    <form onSubmit={fetchRepo}>
       <input
         type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
         placeholder="E.g. facebook/react"
         className={`max-w-width-styling w-[90%] mx-auto pt-[0.9375rem] pb-[0.9375rem] px-4 outline-none bg-[#DFE4EA] rounded-lg mb-6 ${className}`}
       />
-    </div>
+    </form>
   );
 }
 
@@ -125,9 +191,26 @@ function OptionText() {
   );
 }
 
-function ShowCommitButton({ className = "" }) {
+function ShowCommitButton({
+  className = "",
+  query,
+  setShowViewPage,
+  setCommitData,
+}) {
+  async function fetchRepo() {
+    const res = await fetch(`https://api.github.com/repos/${query}/commits`, {
+      header: { Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    setCommitData(data);
+    console.log(`This is data`, data);
+    query.length === 0 ? setShowViewPage(false) : setShowViewPage(true);
+  }
+
   return (
     <button
+      onClick={fetchRepo}
       className={`max-w-width-styling w-[90%] text-center rounded-lg bg-[#F3663F] py-4 mb-8 text-white text-xl font-[600]  leading-[1.75rem] ${className}`}
     >
       See commits 🚀
@@ -135,39 +218,15 @@ function ShowCommitButton({ className = "" }) {
   );
 }
 
-// function CommitSuggestionButton({ setIsLoading, repoButton, onSetResult }) {
-//   const fetchCommit = async (fullName) => {
-//     setIsLoading(true);
-//     const res = await fetch(`https://api.github.com/repos/${fullName}/commits`);
-//     if (!res.ok) throw new Error("Something went wrong");
-//     const data = await res.json();
-//     onSetResult(data);
-//     setIsLoading(false);
-//     console.log(data);
-//   };
-
-//   // const [query, setQuery] = useState("");
-
-//   return (
-//     <div className="flex flex-col gap-2">
-//       {repoButton?.length > 0 &&
-//         repoButton.map((btn, index) => (
-//           <button
-//             key={index}
-//             className="mb-2 py-2 px-4 bg-dark-blue text-white font-[600] rounded-lg"
-//             onClick={() => fetchCommit(btn)}
-//           >
-//             {btn}
-//           </button>
-//         ))}
-//     </div>
-//   );
-// }
-
 function CommitSuggestionButton({ setIsLoading, repoButton, onSetResult }) {
   const fetchCommit = async (fullName) => {
     setIsLoading(true);
-    const res = await fetch(`https://api.github.com/repos/${fullName}/commits`);
+    const res = await fetch(
+      `https://api.github.com/repos/${fullName}/commits`,
+      {
+        header: { Authorization: `Bearer ${key}` },
+      }
+    );
     if (!res.ok) throw new Error("Something went wrong");
     const data = await res.json();
     onSetResult(data);
@@ -203,16 +262,19 @@ function ViewPageNav() {
   );
 }
 
-function ViewPage({ searchResult }) {
+function ViewPage({ searchResult, commitData }) {
   const [result, setResult] = useState();
 
   useEffect(() => {
     if (searchResult && searchResult.length > 0) {
       const authorLogin = searchResult[0].author.login;
-      // Get the login of the first result
-      setResult(authorLogin); // Update the result state
+      console.log(authorLogin);
+      setResult(authorLogin);
+    } else {
+      const authorLogin = commitData[0].author.login;
+      setResult(authorLogin);
     }
-  }, [searchResult]);
+  }, [searchResult, commitData]);
 
   return (
     <div>
